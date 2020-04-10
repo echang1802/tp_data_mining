@@ -6,6 +6,7 @@
 library(data.table)
 library(plotly)
 library(rpart)
+library(dplyr)
 
 # ----> Descarga de datos<----
 
@@ -38,7 +39,7 @@ load_train_data <- function(data_dir, train_file="train.csv", sample_ratio=1,
 
 load_new_data<- FALSE     # <<<<------ Para bajar nuevos datos
 if(load_new_data){
-    train_data<- load_train_data("Datasets/", sample_ratio = 0.1)
+    train_data<- load_train_data("Datasets/", sample_ratio = 0.05)
 } else {
     train_data<- load_csv_data("Datasets/train.csv")
 }
@@ -62,6 +63,11 @@ train_data[, creditor := ((soft_positive + hard_positive) -
 
 train_data[, label := Label_max_played_dsi == 3]
 
+train_data[, participateInTournament := StartTournamentBattle_sum_dsi0 > 0 |
+               StartTournamentBattle_sum_dsi1 > 0 | 
+               StartTournamentBattle_sum_dsi2 > 0 |
+               StartTournamentBattle_sum_dsi3 > 0]
+
 train_data[, winning_rate_dsi0 := WinBattle_sum_dsi0 / (WinBattle_sum_dsi0 + LoseBattle_sum_dsi0)]
 train_data[, winning_rate_dsi1 := WinBattle_sum_dsi1 / (WinBattle_sum_dsi1 + LoseBattle_sum_dsi1)]
 train_data[, winning_rate_dsi2 := WinBattle_sum_dsi2 / (WinBattle_sum_dsi2 + LoseBattle_sum_dsi2)]
@@ -80,6 +86,10 @@ train_data[, BuyCard_avg_ratio := (BuyCard_sum_dsi3 - BuyCard_sum_dsi2 +
 
 train_data[, BuyCard_sum := BuyCard_sum_dsi0 + 
                BuyCard_sum_dsi1 + BuyCard_sum_dsi2 + BuyCard_sum_dsi3]
+
+train_data[, totalBattles := StartBattle_sum_dsi0 + 
+               StartBattle_sum_dsi1 + StartBattle_sum_dsi2 + 
+               StartBattle_sum_dsi3]
 
 train_data[, totalSpended := hard_negative + soft_negative]
 
@@ -221,5 +231,42 @@ tapply(train_data$label[!is.na(train_data$ChangeArena_sum)],
 
     # ----> Graficos exploratorios <----
 
-plot_ly(train_data, x = ~ChangeArena_sum, y = ~notStartedBattleSomeDay,
-        color = CA_NSB_clusters$cluster)
+minTS<- min(train_data$totalSpended)
+train_data$totalSpended<- log(train_data$totalSpended + 1)
+
+ggplot(train_data[sample(nrow(train_data),100000),c("totalSpended","winning_rate","label")], 
+       aes(x=totalSpended, y=winning_rate, color=label, alpha = 0.5)) + 
+    geom_point()
+
+df<- data.frame(
+    totalSpended = seq(from=0,to=1,by=0.01),
+    winningRate = seq(from=0,to=1,by=0.01)
+)
+df$propChurm<- 0
+for(ts in 1:(nrow(df) - 1)){
+    for(wr in 1:(nrow(df) - 1)){
+        pos<- train_data$totalSpended > df$totalSpended[ts] &
+            train_data$totalSpended <= df$totalSpended[ts + 1] &
+            train_data$winning_rate > df$winningRate[wr] &
+            train_data$winning_rate <= df$winningRate[wr + 1]
+        if(sum(pos) > 0){
+            df$propChurm<- sum(train_data$label[pos])/sum(pos)
+        }
+    }
+}
+plot_ly(df, type = "heatmap", x = ~totalSpended, y = ~winningRate,
+        z = ~propChurm, text = ) %>%
+    layout(title = "Proporción de Churm",
+           xaxis = list(title = "Total gastado (en monedas del juego)"),
+           yaxis = list(title = "Tasa de victorias"))
+
+
+df<- train_data %>% group_by(totalBattles,label) %>% 
+    summarise(avg_winningRate = mean(winning_rate, na.rm = TRUE),
+              data_points = length(totalBattles))
+df<- as.data.frame(df)
+
+ggplot(df[1:500,], aes(x = totalBattles, y = avg_winningRate, 
+               color = label)) + 
+    geom_line()
+
