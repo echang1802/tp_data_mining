@@ -36,9 +36,9 @@ load_train_data <- function(data_dir, train_file="train.csv", sample_ratio=1,
     return(df)
 }
 
-load_new_data<- FALSE     # <<<<------ Para bajar nuevos datos
+load_new_data<- TRUE     # <<<<------ Para bajar nuevos datos
 if(load_new_data){
-    train_data<- load_train_data("Datasets/", sample_ratio = 0.1)
+    train_data<- load_train_data("Datasets/", sample_ratio = 0.05)
 } else {
     train_data<- load_csv_data("Datasets/train.csv")
 }
@@ -221,5 +221,3 @@ tapply(train_data$label[!is.na(train_data$ChangeArena_sum)],
 
     # ----> Graficos exploratorios <----
 
-plot_ly(train_data, x = ~ChangeArena_sum, y = ~notStartedBattleSomeDay,
-        color = CA_NSB_clusters$cluster)
