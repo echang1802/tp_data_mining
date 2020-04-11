@@ -40,8 +40,10 @@ load_train_data <- function(data_dir, train_file="train.csv", sample_ratio=1,
 load_new_data<- FALSE     # <<<<------ Para bajar nuevos datos
 if(load_new_data){
     train_data<- load_train_data("Datasets/", sample_ratio = 0.05)
+    save(train_data, file = "Datasets/train.RData")
 } else {
-    train_data<- load_csv_data("Datasets/train.csv")
+    # train_data<- load_csv_data("Datasets/train.csv")
+    load("Datasets/train.RData")
 }
 
 # ----> Analisis exploratorio <-----
@@ -234,30 +236,39 @@ tapply(train_data$label[!is.na(train_data$ChangeArena_sum)],
 minTS<- min(train_data$totalSpended)
 train_data$totalSpended<- log(train_data$totalSpended + 1)
 
-ggplot(train_data[sample(nrow(train_data),100000),c("totalSpended","winning_rate","label")], 
-       aes(x=totalSpended, y=winning_rate, color=label, alpha = 0.5)) + 
-    geom_point()
+# ggplot(train_data[sample(nrow(train_data),100000),c("totalSpended","winning_rate","label")], 
+#        aes(x=totalSpended, y=winning_rate, color=label, alpha = 0.5)) + 
+#     geom_point()
 
-df<- data.frame(
-    totalSpended = seq(from=0,to=1,by=0.01),
-    winningRate = seq(from=0,to=1,by=0.01)
-)
-df$propChurm<- 0
-for(ts in 1:(nrow(df) - 1)){
-    for(wr in 1:(nrow(df) - 1)){
-        pos<- train_data$totalSpended > df$totalSpended[ts] &
-            train_data$totalSpended <= df$totalSpended[ts + 1] &
-            train_data$winning_rate > df$winningRate[wr] &
-            train_data$winning_rate <= df$winningRate[wr + 1]
-        if(sum(pos) > 0){
-            df$propChurm<- sum(train_data$label[pos])/sum(pos)
+df<- data.frame()
+for(ts in seq(from=0,to=max(train_data$totalSpended),by=max(train_data$totalSpended)/20)){
+    for(wr in seq(from=0,to=0.95,by=0.05)){
+        pos<- train_data$totalSpended > ts &
+            train_data$totalSpended <= ts + 0.01 &
+            train_data$winning_rate > wr &
+            train_data$winning_rate <= wr + 0.01
+        if(sum(pos, na.rm = TRUE) > 0){
+            df<- rbind(df, data.frame(
+                totalSpended = ts,
+                winningRate = wr,
+                propChurm = sum(train_data$label[pos], na.rm = TRUE) / sum(pos, na.rm = TRUE),
+                dataPoints = sum(pos, na.rm = TRUE)
+            ))
+        } else {
+            df<- rbind(df, data.frame(
+                totalSpended = ts,
+                winningRate = wr,
+                propChurm = 0,
+                dataPoints = 0
+            ))
         }
     }
 }
-plot_ly(df, type = "heatmap", x = ~totalSpended, y = ~winningRate,
-        z = ~propChurm, text = ) %>%
+plot_ly(df, type = "heatmap", x = ~totalSpended, y = ~winningRate,z = ~propChurm, hoverinfo = "text",
+        text = ~paste("Log(totalGastado):",round(totalSpended,2),"\nTasa de victoria:",round(winningRate,2),
+                      "\nProporción de churm:",round(propChurm,2),"\nNúmero de datos:",dataPoints)) %>%
     layout(title = "Proporción de Churm",
-           xaxis = list(title = "Total gastado (en monedas del juego)"),
+           xaxis = list(title = "Logaritmo del total gastado (en monedas del juego)"),
            yaxis = list(title = "Tasa de victorias"))
 
 
