@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1586517144491.000,
+    "dirty" : true,
+    "encoding" : "UTF-8",
+    "folds" : "3|19|8|0|\n12|44|21|0|\n24|60|36|0|\n90|53|171|0|\n",
+    "hash" : "0",
+    "id" : "D833C2A1",
+    "lastKnownWriteTime" : 1586541218,
+    "last_content_update" : 1586542595368,
+    "path" : "~/DiTella/Mineria de datos/tp_data_mining/tp.R",
+    "project_path" : "tp.R",
+    "properties" : {
+        "cursorPosition" : "184,0",
+        "scrollLine" : "74"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
